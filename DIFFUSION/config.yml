@@ -1,0 +1,8 @@
+n_class: 5
+z_dim: 100 
+w_kl: 0.1 
+data_size: (8, 84) 
+batch_size: 2560
+lr: 0.001
+epochs: 1000
+hidden_dims: [16, 32, 64, 128]
