@@ -1,0 +1,6 @@
+pymatgen
+pandarallel
+SMACT
+pymysql
+pandas
+torch
