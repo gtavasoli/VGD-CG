@@ -11,7 +11,7 @@ SELECT
     fe.stability AS stability,               -- Stability column
     IF(fe.description LIKE '%ICSD%', 1, 0) AS icsd_label, -- Binary ICSD label
     IF(fe.description LIKE '%ICSD%', 1, 0) AS in_icsd,     -- Explicit ICSD flag
-    calc.band_gap AS band_gap,               -- Band gap column
+    CAST(calc.band_gap AS FLOAT) AS band_gap,               -- Band gap column
     IF(calc.band_gap > 0, 1, 0) AS semic_label, -- Binary Semiconductor label
     RAND() AS rand_num                       -- Random value for splitting
 FROM 
