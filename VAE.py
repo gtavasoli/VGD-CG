@@ -101,7 +101,7 @@ def generate_samples(
 
             # Sample random latent vectors from a standard normal distribution
             fake_noise = torch.randn(batch_size, model.z_dim).float().to(device)
-            # 条件编码
+            # Conditional Coding
 
             # Apply conditional labels if the model supports them
             if model.class_label or model.icsd_label or model.semic_label:
@@ -134,7 +134,7 @@ def generate_samples(
         data = data.dropna()    # Drop invalid compositions (None)
         print("Removed None values: {}/{}".format(data.shape[0], len(comp_list)))
         # data = data.drop_duplicates()
-        # print("删除重复后：{}/{}".format(data.shape[0], len(comp_list)))
+        # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
         
 
         pandarallel.initialize(progress_bar=False, nb_workers=48)
@@ -304,7 +304,7 @@ def train(config):
             loop.set_postfix(loss=loss.item())
 
 # if ((epoch+1) % 50 == 0):
-    # print('\n计算重建损失率')
+    # print('\nCalculate the reconstruction loss rate')
     # # print("train_loader:")
     # # reconstruct_samples(model, train_loader)
     # print("test_loader:")
