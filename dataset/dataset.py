@@ -18,7 +18,7 @@ class CompositionDataset(Dataset):
                                    'band_gap': 'float'
                                    })
         
-        raw_data = raw_data.iloc[:int(raw_data.shape[0]/10), :] # DON'T FORGET TO COMMENT IT
+        raw_data = raw_data.iloc[:int(raw_data.shape[0]/100), :] # DON'T FORGET TO COMMENT IT
         
         self.n_class = n_class
         self.icsd_label = icsd_label
