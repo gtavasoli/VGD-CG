@@ -136,6 +136,7 @@ def generate_samples(
     # data = data.drop_duplicates()
     # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
     
+    print(f"NUM WORKERS{NUM_WORKERS}")
     pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
     # Filter compositions with element counts between 2 and 5
