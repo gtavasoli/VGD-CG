@@ -59,7 +59,6 @@ def reconstruct_samples(model, data_loader=None):
     # Print reconstruction accuracy
     print("reconstruction: {}/{} {}".format(same_num, data.shape[0], same_num/data.shape[0]))
  
-
 def generate_samples(
         model_path, 
         epochs=1, 
@@ -69,107 +68,112 @@ def generate_samples(
         is_icsd=False,
         is_semic=False
         ):
-        """
-        Helper function to iteratively generates valid compositions using a pre-trained Variational Autoencoder (VAE) model.
+    """
+    Helper function to iteratively generate valid compositions using a pre-trained Variational Autoencoder (VAE) model.
 
-        This function decodes random noise vectors sampled from a standard normal distribution
-        to generate synthetic material compositions. It incorporates optional class conditions
-        (e.g., stability, ICSD, and semiconductor labels) and saves valid compositions to a CSV file.
+    This function decodes random noise vectors sampled from a standard normal distribution
+    to generate synthetic material compositions. It incorporates optional class conditions
+    (e.g., stability, ICSD, and semiconductor labels) and saves valid compositions to a CSV file.
 
-        Args:
-            model_path (str): Path to the saved VAE model.
-            epochs (int, optional): Number of iterations for generating samples. Defaults to 1.
-            batch_size (int, optional): Number of samples to generate in each batch. Defaults to 2500.
-            which_class (int, optional): Index of the target class for conditional generation. Defaults to 0.
-            device (str, optional): Device to use for computations ("cuda" or "cpu"). Defaults to "cuda".
-            is_icsd (bool, optional): Condition to include ICSD label in generated samples. Defaults to False.
-            is_semic (bool, optional): Condition to include semiconductor label in generated samples. Defaults to False.
+    Args:
+        model_path (str): Path to the saved VAE model.
+        epochs (int, optional): Number of iterations for generating samples. Defaults to 1.
+        batch_size (int, optional): Number of samples to generate in each batch. Defaults to 2500.
+        which_class (int, optional): Index of the target class for conditional generation. Defaults to 0.
+        device (str, optional): Device to use for computations ("cuda" or "cpu"). Defaults to "cuda".
+        is_icsd (bool, optional): Condition to include ICSD label in generated samples. Defaults to False.
+        is_semic (bool, optional): Condition to include semiconductor label in generated samples. Defaults to False.
 
-        Returns:
-            None: Saves the valid generated samples to `./output/VAE/generate_sample_cond.csv` and prints statistics.
-        """
+    Returns:
+        None: Saves the valid generated samples to `./output/VAE/generate_sample_cond.csv` and prints statistics.
+    """
 
-        # Initialize an empty list to store generated compositions
-        comp_list = []
+    # Initialize an empty list to store generated compositions
+    comp_list = []
+    
+    # Load the pre-trained VAE model and set it to evaluation mode
+    print("Load model...")
+    model = torch.load(model_path)
+    model.to(device)
+    model.eval()
+    
+    # Generate synthetic compositions for the specified number of epochs with a progress bar
+    print("Generate synthetic compositions...")
+    for i in tqdm(range(epochs), desc="Epochs"):
+        # Sample random latent vectors from a standard normal distribution
+        fake_noise = torch.randn(batch_size, model.z_dim).float().to(device)
         
-        # Load the pre-trained VAE model and set it to evaluation mode
-        model = torch.load(model_path)
-        model.to(device)
-        model.eval()
-        
-        # Generate synthetic compositions for the specified number of epochs
-        for i in range(epochs):
+        # Conditional Coding
+        if model.class_label or model.icsd_label or model.semic_label:
+            # Create a label tensor with appropriate dimensions
+            labels = torch.zeros(batch_size, model.n_class + model.icsd_label + model.semic_label, device=device)
 
-            # Sample random latent vectors from a standard normal distribution
-            fake_noise = torch.randn(batch_size, model.z_dim).float().to(device)
-            # Conditional Coding
-
-            # Apply conditional labels if the model supports them
-            if model.class_label or model.icsd_label or model.semic_label:
-                # print("*" * 100)
-
-                # Create a label tensor with appropriate dimensions
-                labels = torch.zeros(batch_size, model.n_class+model.icsd_label+model.semic_label, device=device)
-
-                # Assign class-specific, ICSD, or semiconductor conditions
-                if model.class_label:
-                    labels[:, which_class] = 1
-                
-                if model.icsd_label:
-                    labels[:, model.n_class] = is_icsd
-
-                if model.semic_label:
-                    labels[:, model.n_class+model.semic_label] = is_semic     
-   
-                # Decode latent vectors using the conditional labels
-                fake_gen = model.decode(fake_noise, labels).cpu().squeeze().detach()
-            else:
-                # Decode latent vectors without conditional labels
-                fake_gen = model.decode(fake_noise).cpu().squeeze().detach()
+            # Assign class-specific, ICSD, or semiconductor conditions
+            if model.class_label:
+                labels[:, which_class] = 1
             
-            # Convert generated features to material compositions
-            comp_list += feature2composition(fake_gen, model.elements_list)
+            if model.icsd_label:
+                labels[:, model.n_class] = is_icsd
 
-        # Create a DataFrame to store generated compositions
-        data = pd.DataFrame({'composition': comp_list})
-        data = data.dropna()    # Drop invalid compositions (None)
-        print("Removed None values: {}/{}".format(data.shape[0], len(comp_list)))
-        # data = data.drop_duplicates()
-        # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
+            if model.semic_label:
+                labels[:, model.n_class + model.semic_label] = is_semic     
+
+            # Decode latent vectors using the conditional labels
+            fake_gen = model.decode(fake_noise, labels).cpu().squeeze().detach()
+        else:
+            # Decode latent vectors without conditional labels
+            fake_gen = model.decode(fake_noise).cpu().squeeze().detach()
         
+        # Convert generated features to material compositions
+        comp_list += feature2composition(fake_gen, model.elements_list)
 
-        pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
+    # Create a DataFrame to store generated compositions
+    data = pd.DataFrame({'composition': comp_list})
+    data = data.dropna()    # Drop invalid compositions (None)
+    print("Removed None values: {}/{}".format(data.shape[0], len(comp_list)))
+    # data = data.drop_duplicates()
+    # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
+    
+    pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
-        # Filter compositions with element counts between 2 and 5
-        data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
-        
-        print(data['element_num'].value_counts())
+    # Filter compositions with element counts between 2 and 5
+    data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
+    print(data['element_num'].value_counts())
      
-        data = data[data['element_num']>1]
-        data = data[data['element_num']<6]
-        print("Compositions with 2-5 elements: {}/{}".format(data.shape[0], len(comp_list)))
+    data = data[data['element_num'] > 1]
+    data = data[data['element_num'] < 6]
+    print("Compositions with 2-5 elements: {}/{}".format(data.shape[0], len(comp_list)))
 
-        # Check chemical validity, charge neutrality, and electronegativity balance
-        temp = data['composition'].parallel_apply(check_valid)
-        data['charge neutrality'] = temp.parallel_apply(lambda comp: comp[0])
-        data['electronegativity balance'] = temp.parallel_apply(lambda comp: comp[1])
-        data['valid'] = temp.parallel_apply(lambda comp: comp[2])
-        
-        # Print statistics for validity checks
-        print("charge neutrality: {}/{} {}".format(data['charge neutrality'].sum(), data.shape[0], 
-                                        data['charge neutrality'].sum()/data.shape[0])
-                                        )
-        print("electronegativity balance: {}/{} {}".format(data['electronegativity balance'].sum(), 
-                                        data.shape[0], data['electronegativity balance'].sum()/data.shape[0])
-                                        )
-        print("valid: {}/{} {}".format(data['valid'].sum(), data.shape[0], data['valid'].sum()/data.shape[0]))
-        
-        # Save valid compositions to a CSV file
-        data['composition'] = data['composition'].parallel_apply(lambda comp: comp.formula)
-        output_file = "./output/VAE/generate_sample_cond.csv"
-        data.to_csv(output_file, index=False)
+    # Check chemical validity, charge neutrality, and electronegativity balance
+    temp = data['composition'].parallel_apply(check_valid)
+    data['charge neutrality'] = temp.parallel_apply(lambda comp: comp[0])
+    data['electronegativity balance'] = temp.parallel_apply(lambda comp: comp[1])
+    data['valid'] = temp.parallel_apply(lambda comp: comp[2])
+    
+    # Print statistics for validity checks
+    print("charge neutrality: {}/{} {}".format(
+        data['charge neutrality'].sum(), 
+        data.shape[0], 
+        data['charge neutrality'].sum() / data.shape[0]
+    ))
+    print("electronegativity balance: {}/{} {}".format(
+        data['electronegativity balance'].sum(), 
+        data.shape[0], 
+        data['electronegativity balance'].sum() / data.shape[0]
+    ))
+    print("valid: {}/{} {}".format(
+        data['valid'].sum(), 
+        data.shape[0], 
+        data['valid'].sum() / data.shape[0]
+    ))
+    
+    # Save valid compositions to a CSV file
+    data['composition'] = data['composition'].parallel_apply(lambda comp: comp.formula)
+    output_file = "./output/VAE/generate_sample_cond.csv"
+    data.to_csv(output_file, index=False)
 
-        print(f"Generated samples saved to {output_file}")
+    print(f"Generated samples saved to {output_file}")
+
         
         
 
