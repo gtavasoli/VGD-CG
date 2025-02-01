@@ -88,16 +88,16 @@ class VAE_Conv(torch.nn.Module):
         modules += self.encode_block(128, 256, kernel_size=(3, 3), stride=(2, 2))  # 5, 6
         self.encoder = torch.nn.Sequential(*modules)
         
-        self.mean_linear = torch.nn.Linear(5*6*128, z_dim)
-        self.logvar_linear = torch.nn.Linear(5*6*128, z_dim)
-        self.decoder_linear = torch.nn.Linear(z_dim+n_class+icsd_label+semic_label, 5*3*256)
+        self.mean_linear = torch.nn.Linear(5*6*256, z_dim)
+        self.logvar_linear = torch.nn.Linear(5*6*256, z_dim)
+        self.decoder_linear = torch.nn.Linear(z_dim+n_class+icsd_label+semic_label, 5*6*256)
         modules = []
         modules += self.decode_block(256, 128, kernel_size=(3, 3), stride=(2, 2))
         modules += self.decode_block(128, 128, kernel_size=(3, 3), stride=(1, 2))
         modules += self.decode_block(128, 64, kernel_size=(3, 3), stride=(1, 1))
         modules += self.decode_block(64, 64, kernel_size=(3, 4), stride=(1, 2))
         modules += self.decode_block(64, 32, kernel_size=(3, 3), stride=(1, 1))
-        modules += self.decode_block(32, 32, kernel_size=(3, 4), stride=(1, 2), output_padding=(0, 1))
+        modules += self.decode_block(32, 32, kernel_size=(3, 4), stride=(1, 2), padding=(1, 0), output_padding=(0, 1))
         modules += self.decode_block(32, 1, kernel_size=(3, 3), stride=(1, 1))
 
         self.decoder = torch.nn.Sequential(*modules)
@@ -137,7 +137,7 @@ class VAE_Conv(torch.nn.Module):
         else:
             z_c = z
         out = self.decoder_linear(z_c)
-        out = self.decoder(out.view(z.shape[0], -1, 5, 3))
+        out = self.decoder(out.view(z.shape[0], -1, 5, 6))
         # out = self.decoder(z)
         return torch.sigmoid(out)
     
