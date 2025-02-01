@@ -6,7 +6,7 @@ import numpy as np
 import os
 from pandarallel import pandarallel
 
-NUM_WORKERS=48
+NUM_WORKERS=1
 
 
 class CompositionDataset(Dataset):

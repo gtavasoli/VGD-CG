@@ -10,7 +10,7 @@ from pandarallel import pandarallel
 from tqdm.auto import tqdm
 import os
 
-NUM_WORKERS=48
+NUM_WORKERS=1
 
 def reconstruct_samples(model, data_loader=None):
     """
