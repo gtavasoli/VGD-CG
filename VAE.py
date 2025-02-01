@@ -88,6 +88,8 @@ def generate_samples(
         None: Saves the valid generated samples to `./output/VAE/generate_sample_cond.csv` and prints statistics.
     """
 
+    global NUM_WORKERS
+
     # Initialize an empty list to store generated compositions
     comp_list = []
     
