@@ -10,6 +10,7 @@ from pandarallel import pandarallel
 from tqdm.auto import tqdm
 import os
 
+NUM_WORKERS=1
 
 def reconstruct_samples(model, data_loader=None):
     """
@@ -137,7 +138,7 @@ def generate_samples(
         # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
         
 
-        pandarallel.initialize(progress_bar=False, nb_workers=48)
+        pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
         # Filter compositions with element counts between 2 and 5
         data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
@@ -252,10 +253,10 @@ def train(config):
 
     # Create DataLoaders for efficient data processing
     train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, 
-                              pin_memory=True, num_workers=24, persistent_workers=True, prefetch_factor=24
+                              pin_memory=True, num_workers=NUM_WORKERS if NUM_WORKERS == 1 else int(NUM_WORKERS/2), persistent_workers=True, prefetch_factor=24
                               ) 
     test_loader = DataLoader(test_dataset, batch_size=config['batch_size'], shuffle=False, 
-                             pin_memory=True, num_workers=24, persistent_workers=True, prefetch_factor=24
+                             pin_memory=True, num_workers=NUM_WORKERS if NUM_WORKERS == 1 else int(NUM_WORKERS/2), persistent_workers=True, prefetch_factor=24
                              )
     
     # Save the DataLoaders for later use
@@ -312,6 +313,9 @@ def train(config):
     
     # Save the trained model to the specified directory  
     save_path = os.path.join("./saved_model/VAE", config['model_name'])
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
     torch.save(model, save_path)
     print(f"\nFinished training. Model saved to {save_path}")
    

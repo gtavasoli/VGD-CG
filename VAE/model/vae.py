@@ -64,9 +64,9 @@ class VAE_Conv(torch.nn.Module):
                 icsd_label=False, semic_label=False
             ):
         super().__init__()
-        # 定义编码器
+        # Defining the encoder
         modules = []
-        # hidden_dims.insert(0, 1) # 将数据的channel插入
+        # hidden_dims.insert(0, 1) # Insert the data channel
         self.data_size = data_size
         self.n_class = n_class
         self.icsd_label = icsd_label
@@ -88,16 +88,16 @@ class VAE_Conv(torch.nn.Module):
         modules += self.encode_block(128, 256, kernel_size=(3, 3), stride=(2, 2))  # 5, 6
         self.encoder = torch.nn.Sequential(*modules)
         
-        self.mean_linear = torch.nn.Linear(5*6*256, z_dim)
-        self.logvar_linear = torch.nn.Linear(5*6*256, z_dim)
-        self.decoder_linear = torch.nn.Linear(z_dim+n_class+icsd_label+semic_label, 5*6*256)
+        self.mean_linear = torch.nn.Linear(5*6*128, z_dim)
+        self.logvar_linear = torch.nn.Linear(5*6*128, z_dim)
+        self.decoder_linear = torch.nn.Linear(z_dim+n_class+icsd_label+semic_label, 5*3*256)
         modules = []
         modules += self.decode_block(256, 128, kernel_size=(3, 3), stride=(2, 2))
         modules += self.decode_block(128, 128, kernel_size=(3, 3), stride=(1, 2))
         modules += self.decode_block(128, 64, kernel_size=(3, 3), stride=(1, 1))
         modules += self.decode_block(64, 64, kernel_size=(3, 4), stride=(1, 2))
         modules += self.decode_block(64, 32, kernel_size=(3, 3), stride=(1, 1))
-        modules += self.decode_block(32, 32, kernel_size=(3, 4), stride=(1, 2))
+        modules += self.decode_block(32, 32, kernel_size=(3, 4), stride=(1, 2), output_padding=(0, 1))
         modules += self.decode_block(32, 1, kernel_size=(3, 3), stride=(1, 1))
 
         self.decoder = torch.nn.Sequential(*modules)
@@ -107,16 +107,17 @@ class VAE_Conv(torch.nn.Module):
         epsilon = torch.randn_like(z_logvar)
         return torch.exp(0.5 * z_logvar) * epsilon + z_mean
 
-    def encode_block(self, in_dim, out_dim, kernel_size, stride):
+    def encode_block(self, in_dim, out_dim, kernel_size, stride, padding=1):
         data = [
-        torch.nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1),
+        torch.nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding),
         torch.nn.BatchNorm2d(out_dim),
         torch.nn.ReLU()]
         return data
         
-    def decode_block(self, in_dim, out_dim, kernel_size, stride):
+    def decode_block(self, in_dim, out_dim, kernel_size, stride, padding=1, output_padding=0):
         data = [
-        torch.nn.ConvTranspose2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1),
+        torch.nn.ConvTranspose2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, 
+                                 padding=padding, output_padding=output_padding),
         torch.nn.BatchNorm2d(out_dim),
         torch.nn.ReLU()]
         return data
@@ -124,6 +125,7 @@ class VAE_Conv(torch.nn.Module):
     def encode(self, x):
         # Encode the input given a class label and return mean and log variance
         out = self.encoder(x) 
+        # print("Encoder output shape:", out.shape)
         return self.mean_linear(out.view(out.shape[0], -1)), self.logvar_linear(out.view(out.shape[0], -1))
      
 
@@ -135,7 +137,7 @@ class VAE_Conv(torch.nn.Module):
         else:
             z_c = z
         out = self.decoder_linear(z_c)
-        out = self.decoder(out.view(z.shape[0], -1, 5, 6))
+        out = self.decoder(out.view(z.shape[0], -1, 5, 3))
         # out = self.decoder(z)
         return torch.sigmoid(out)
     

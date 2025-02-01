@@ -6,29 +6,36 @@ import numpy as np
 import os
 from pandarallel import pandarallel
 
+NUM_WORKERS=1
+
 
 class CompositionDataset(Dataset):
     def __init__(self, data_path='./data/', target_name='data.csv', n_class=5, class_flag='stability', icsd_label=False, semic_label=False, max_atom_num_per_element=8) -> None:
         super().__init__()
         self.data_path = data_path
-        raw_data = pd.read_csv(os.path.join(self.data_path, target_name))
-        # raw_data = raw_data.iloc[:int(raw_data.shape[0]/20), :]
+        raw_data = pd.read_csv(os.path.join(self.data_path, target_name), 
+                               dtype={
+                                   'band_gap': 'float'
+                                   })
+        
+        raw_data = raw_data.iloc[:int(raw_data.shape[0]/10000), :] # DON'T FORGET TO COMMENT IT
+        
         self.n_class = n_class
         self.icsd_label = icsd_label
         self.class_flag = class_flag
         self.semic_label = semic_label
 
-        pandarallel.initialize(progress_bar=False, nb_workers=48)
-        # 转为组分
+        pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
+        # Convert to components
         raw_data['composition'] = raw_data['composition'].parallel_apply(lambda comp: Composition(comp))
         self.elements_list = self.get_elements_list(raw_data)
         data_file = os.path.join(self.data_path, target_name.split('.')[0]+".pt")
         if os.path.exists(data_file):
-            print("已经存在数据集，正在加载数据！")
+            print("The dataset already exists, loading data!")
             self.features, self.labels, self.cond_bin = torch.load(data_file)
         else:
-            print('正在处理数据！')
-            # 获取最大原子数
+            print('Processing data!')
+            # Get the maximum number of atoms
             # max_atom_num_per_element = int(raw_data['composition'].parallel_apply(lambda comp: max(comp.as_dict().values())).max())
             self.features = raw_data['composition'].parallel_apply(self.get_features, args=(max_atom_num_per_element,))
             self.labels, self.cond_bin = self.get_labels(raw_data)
