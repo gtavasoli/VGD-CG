@@ -136,15 +136,14 @@ def generate_samples(
     # data = data.drop_duplicates()
     # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
 
+    pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
+
     if not data.empty:
+        # Filter compositions with element counts between 2 and 5
         data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
     else:
         print("No valid compositions to process!")
-    
-    pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
-    # Filter compositions with element counts between 2 and 5
-    data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
     print(data['element_num'].value_counts())
      
     data = data[data['element_num'] > 1]
