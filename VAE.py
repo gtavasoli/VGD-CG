@@ -135,8 +135,12 @@ def generate_samples(
     print("Removed None values: {}/{}".format(data.shape[0], len(comp_list)))
     # data = data.drop_duplicates()
     # print("After removing duplicates: {}/{}".format(data.shape[0], len(comp_list)))
+
+    if not data.empty:
+        data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
+    else:
+        print("No valid compositions to process!")
     
-    print(f"NUM WORKERS{NUM_WORKERS}")
     pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
     # Filter compositions with element counts between 2 and 5
@@ -379,7 +383,8 @@ if __name__ == "__main__":
         batch_size=10000,        # Number of samples per batch
         epochs=130,              # Number of iterations for sample generation
         is_icsd=True,            # Include ICSD condition in generated samples
-        is_semic=True            # Include semiconductor condition in generated samples
+        is_semic=True,           # Include semiconductor condition in generated samples
+        device=device
     )
 
     # Measure the time taken for sample generation
