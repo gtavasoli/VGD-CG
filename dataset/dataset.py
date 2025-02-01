@@ -6,7 +6,7 @@ import numpy as np
 import os
 from pandarallel import pandarallel
 
-NUM_WORKERS=48
+NUM_WORKERS= os.cpu_count() - 1 if os.cpu_count() and os.cpu_count() > 1 else 1
 
 
 class CompositionDataset(Dataset):

@@ -10,7 +10,7 @@ from pandarallel import pandarallel
 from tqdm.auto import tqdm
 import os
 
-NUM_WORKERS=48
+NUM_WORKERS= os.cpu_count() - 1 if os.cpu_count() and os.cpu_count() > 1 else 1
 
 def reconstruct_samples(model, data_loader=None):
     """
