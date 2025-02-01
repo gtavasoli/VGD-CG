@@ -138,12 +138,12 @@ def generate_samples(
 
     pandarallel.initialize(progress_bar=False, nb_workers=NUM_WORKERS)
 
-    if not data.empty:
-        # Filter compositions with element counts between 2 and 5
-        data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
-    else:
+    if data.empty:
         print("No valid compositions to process!")
+        return
 
+    # Filter compositions with element counts between 2 and 5
+    data['element_num'] = data['composition'].parallel_apply(lambda comp: len(comp.elements))
     print(data['element_num'].value_counts())
      
     data = data[data['element_num'] > 1]
@@ -180,8 +180,6 @@ def generate_samples(
 
     print(f"Generated samples saved to {output_file}")
 
-        
-        
 
 def loss_func(x, x_hat, mean, logvar, w_kl=1):
     """
